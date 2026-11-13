@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <title>Bloc-notes en ligne</title>
+  <style>
+    :root {
+      --bg: #e9eef2;
+      --win: #fff;
+      --bar: #fafafa;
+      --title: #e4e4e4;
+      --line: #d9d9d9;
+      --text: #2b2b2b;
+      --muted: #777;
+      --hover: #e8eef5;
+      --accent: #2f6db5;
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0
+    }
+
+    body {
+      background: linear-gradient(135deg, #4f86a0, #8fb0a8);
+      font: 14px/1.4 "Segoe UI", system-ui, sans-serif;
+      color: var(--text);
+      padding: 12px
+    }
+
+    .app {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: var(--win);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 6px 30px rgba(0, 0, 0, .25)
+    }
+
+    .app.full {
+      position: fixed;
+      inset: 0;
+      border-radius: 0;
+      z-index: 50
+    }
+
+    .title {
+      background: var(--title);
+      text-align: center;
+      font-weight: 600;
+      padding: 8px;
+      border-bottom: 1px solid var(--line)
+    }
+
+    .menubar {
+      display: flex;
+      background: var(--bar);
+      padding: 0 6px;
+      border-bottom: 1px solid var(--line)
+    }
+
+    .menu {
+      position: relative
+    }
+
+    .menu>button {
+      padding: 8px 10px
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+      background: none;
+      border: 0;
+      cursor: pointer;
+      border-radius: 3px
+    }
+
+    button:hover,
+    button.on {
+      background: var(--hover)
+    }
+
+    button:focus-visible,
+    select:focus-visible {
+      outline: 2px solid var(--accent)
+    }
+
+    .menu>button::after {
+      content: "";
+      display: inline-block;
+      margin-left: 5px;
+      border: 4px solid transparent;
+      border-top-color: currentColor;
+      border-bottom: 0;
+      vertical-align: middle
+    }
+
+    .drop {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      min-width: 210px;
+      background: var(--win);
+      border: 1px solid var(--line);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, .2);
+      z-index: 10;
+      padding: 4px 0
+    }
+
+    .menu.open .drop {
+      display: block
+    }
+
+    .drop button {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      width: 100%;
+      text-align: left;
+      padding: 6px 14px;
+      border-radius: 0
+    }
+
+    .drop kbd {
+      color: var(--muted);
+      font: inherit;
+      font-size: 12px
+    }
+
+    .drop hr {
+      border: 0;
+      border-top: 1px solid var(--line);
+      margin: 4px 0
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 2px;
+      padding: 5px 8px;
+      background: var(--bar);
+      border-bottom: 1px solid var(--line)
+    }
+
+    .toolbar button {
+      width: 32px;
+      height: 30px;
+      display: grid;
+      place-items: center
+    }
+
+    .toolbar svg {
+      width: 17px;
+      height: 17px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round
+    }
+
+    .sep {
+      width: 1px;
+      height: 22px;
+      background: var(--line);
+      margin: 0 6px
+    }
+
+    select {
+      font: inherit;
+      color: inherit;
+      background: var(--bar);
+      border: 1px solid transparent;
+      border-radius: 3px;
+      height: 30px;
+      padding: 0 6px;
+      cursor: pointer
+    }
+
+    select:hover {
+      background: var(--hover)
+    }
+
+    input[type=color] {
+      width: 30px;
+      height: 26px;
+      border: 0;
+      padding: 0;
+      background: none;
+      cursor: pointer
+    }
+
+    #editor {
+      flex: 1;
+      overflow: auto;
+      padding: 24px 32px;
+      outline: none;
+      background: var(--win);
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.55
+    }
+
+    #editor:empty::before {
+      content: attr(data-placeholder);
+      color: var(--muted)
+    }
+
+    #editor table {
+      border-collapse: collapse
+    }
+
+    #editor td {
+      border: 1px solid var(--line);
+      padding: 6px 10px;
+      min-width: 60px
+    }
+
+    #editor img {
+      max-width: 100%
+    }
+
+    #editor.nowrap {
+      white-space: pre;
+      overflow-x: auto
+    }
+
+    .status {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 12px;
+      font-size: 12px;
+      color: var(--muted);
+      background: var(--bar);
+      border-top: 1px solid var(--line)
+    }
+
+    @media print {
+      body {
+        background: #fff;
+        padding: 0
+      }
+
+      .app>:not(#editor) {
+        display: none
+      }
+
+      .app {
+        border: 0;
+        box-shadow: none
+      }
+    }
+
+    @media (max-width:600px) {
+      body {
+        padding: 0
+      }
+
+      .app {
+        border-radius: 0
+      }
+
+      #editor {
+        padding: 16px
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app" id="app">
+    <div class="title">Bloc-notes en ligne</div>
+
+    <div class="menubar" id="menubar">
+      <div class="menu"><button>Fichier</button>
+        <div class="drop">
+          <button data-a="new">Nouveau <kbd>Ctrl+Alt+N</kbd></button>
+          <button data-a="open">Ouvrir… <kbd>Ctrl+O</kbd></button>
+          <button data-a="saveHtml">Enregistrer en HTML <kbd>Ctrl+S</kbd></button>
+          <button data-a="saveTxt">Enregistrer en texte</button>
+          <hr><button data-a="print">Imprimer <kbd>Ctrl+P</kbd></button>
+        </div>
+      </div>
+      <div class="menu"><button>Édition</button>
+        <div class="drop">
+          <button data-c="undo">Annuler <kbd>Ctrl+Z</kbd></button>
+          <button data-c="redo">Rétablir <kbd>Ctrl+Y</kbd></button>
+          <hr>
+          <button data-c="cut">Couper <kbd>Ctrl+X</kbd></button>
+          <button data-c="copy">Copier <kbd>Ctrl+C</kbd></button>
+          <button data-a="paste">Coller <kbd>Ctrl+V</kbd></button>
+          <hr>
+          <button data-c="selectAll">Tout sélectionner <kbd>Ctrl+A</kbd></button>
+          <button data-a="find">Rechercher… <kbd>Ctrl+F</kbd></button>
+        </div>
+      </div>
+      <div class="menu"><button>Insertion</button>
+        <div class="drop">
+          <button data-a="link">Lien…</button>
+          <button data-a="image">Image (URL)…</button>
+          <button data-a="table">Tableau…</button>
+          <button data-c="insertHorizontalRule">Ligne horizontale</button>
+          <button data-a="date">Date et heure</button>
+        </div>
+      </div>
+      <div class="menu"><button>Affichage</button>
+        <div class="drop">
+          <button data-a="full">Plein écran</button>
+          <button data-a="wrap">Retour à la ligne automatique</button>
+          <button data-a="zoomIn">Zoom +</button>
+          <button data-a="zoomOut">Zoom −</button>
+        </div>
+      </div>
+      <div class="menu"><button>Aide</button>
+        <div class="drop">
+          <button data-a="help">Raccourcis clavier</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toolbar" id="toolbar">
+      <button data-a="new" title="Nouveau"><svg viewBox="0 0 24 24">
+          <path d="M6 2h8l5 5v15H6z" />
+          <path d="M14 2v5h5" />
+        </svg></button>
+      <button data-a="open" title="Ouvrir"><svg viewBox="0 0 24 24">
+          <path d="M3 7h6l2 2h10v10H3z" />
+        </svg></button>
+      <button data-a="saveHtml" title="Enregistrer"><svg viewBox="0 0 24 24">
+          <path d="M4 4h13l3 3v13H4z" />
+          <path d="M8 4v6h8V4M8 20v-6h8v6" />
+        </svg></button>
+      <button data-a="print" title="Imprimer"><svg viewBox="0 0 24 24">
+          <path d="M7 9V3h10v6M7 17H4v-8h16v8h-3M7 14h10v7H7z" />
+        </svg></button>
+      <span class="sep"></span>
+      <button data-c="cut" title="Couper"><svg viewBox="0 0 24 24">
+          <circle cx="6" cy="18" r="3" />
+          <circle cx="18" cy="18" r="3" />
+          <path d="M8 16 19 3M16 16 5 3" />
+        </svg></button>
+      <button data-c="copy" title="Copier"><svg viewBox="0 0 24 24">
+          <rect x="8" y="8" width="12" height="13" />
+          <path d="M16 8V3H4v13h4" />
+        </svg></button>
+      <button data-a="paste" title="Coller"><svg viewBox="0 0 24 24">
+          <rect x="5" y="5" width="14" height="16" />
+          <path d="M9 5V3h6v2" />
+        </svg></button>
+      <span class="sep"></span>
+      <button data-c="undo" title="Annuler"><svg viewBox="0 0 24 24">
+          <path d="M9 14 4 9l5-5" />
+          <path d="M4 9h10a6 6 0 0 1 0 12h-3" />
+        </svg></button>
+      <button data-c="redo" title="Rétablir"><svg viewBox="0 0 24 24">
+          <path d="m15 14 5-5-5-5" />
+          <path d="M20 9H10a6 6 0 0 0 0 12h3" />
+        </svg></button>
+      <button data-a="find" title="Rechercher"><svg viewBox="0 0 24 24">
+          <circle cx="10" cy="10" r="6" />
+          <path d="m15 15 6 6" />
+        </svg></button>
+      <span class="sep"></span>
+      <select id="font" title="Police">
+        <option value="">Police</option>
+        <option>Arial</option>
+        <option>Verdana</option>
+        <option>Tahoma</option>
+        <option>Georgia</option>
+        <option>Times New Roman</option>
+        <option>Courier New</option>
+        <option>Trebuchet MS</option>
+      </select>
+      <select id="size" title="Taille">
+        <option value="">Taille</option>
+        <option value="1">Très petit</option>
+        <option value="2">Petit</option>
+        <option value="3">Normal</option>
+        <option value="4">Moyen</option>
+        <option value="5">Grand</option>
+        <option value="6">Très grand</option>
+        <option value="7">Énorme</option>
+      </select>
+      <select id="block" title="Style de paragraphe">
+        <option value="">Paragraphe</option>
+        <option value="p">Texte</option>
+        <option value="h1">Titre 1</option>
+        <option value="h2">Titre 2</option>
+        <option value="h3">Titre 3</option>
+        <option value="blockquote">Citation</option>
+        <option value="pre">Code</option>
+      </select>
+      <span class="sep"></span>
+      <button data-c="bold" title="Gras (Ctrl+B)"><b>B</b></button>
+      <button data-c="italic" title="Italique (Ctrl+I)"><i>I</i></button>
+      <button data-c="underline" title="Souligné (Ctrl+U)"><u>U</u></button>
+      <button data-c="strikeThrough" title="Barré"><s>S</s></button>
+      <input type="color" id="fore" value="#000000" title="Couleur du texte">
+      <input type="color" id="back" value="#ffff00" title="Surlignage">
+      <span class="sep"></span>
+      <button data-c="justifyLeft" title="Aligner à gauche"><svg viewBox="0 0 24 24">
+          <path d="M4 6h16M4 10h10M4 14h16M4 18h10" />
+        </svg></button>
+      <button data-c="justifyCenter" title="Centrer"><svg viewBox="0 0 24 24">
+          <path d="M4 6h16M7 10h10M4 14h16M7 18h10" />
+        </svg></button>
+      <button data-c="justifyRight" title="Aligner à droite"><svg viewBox="0 0 24 24">
+          <path d="M4 6h16M10 10h10M4 14h16M10 18h10" />
+        </svg></button>
+      <button data-c="insertUnorderedList" title="Liste à puces"><svg viewBox="0 0 24 24">
+          <path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" />
+        </svg></button>
+      <button data-c="insertOrderedList" title="Liste numérotée"><svg viewBox="0 0 24 24">
+          <path d="M10 6h10M10 12h10M10 18h10M4 5l1-1v4M3 14h3l-3 4h3" />
+        </svg></button>
+      <button data-c="outdent" title="Diminuer le retrait"><svg viewBox="0 0 24 24">
+          <path d="M4 6h16M10 12h10M4 18h16M7 9l-3 3 3 3" />
+        </svg></button>
+      <button data-c="indent" title="Augmenter le retrait"><svg viewBox="0 0 24 24">
+          <path d="M4 6h16M10 12h10M4 18h16M4 9l3 3-3 3" />
+        </svg></button>
+      <button data-c="removeFormat" title="Effacer la mise en forme"><svg viewBox="0 0 24 24">
+          <path d="M5 5h14M12 5l-3 14M4 20l16-16" />
+        </svg></button>
+      <span class="sep"></span>
+      <button data-a="full" title="Plein écran"><svg viewBox="0 0 24 24">
+          <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+        </svg></button>
+    </div>
+
+    <div id="editor" contenteditable="true" spellcheck="true" data-placeholder="Commencez à écrire…"></div>
+    <div class="status"><span id="count">0 mot · 0 caractère</span><span id="saved">Sauvegarde automatique
+        activée</span></div>
+  </div>
+  <input type="file" id="file" accept=".html,.htm,.txt,text/*" hidden>
+
+  <script>
+    (() => {
+      const $ = s => document.querySelector(s);
+      const ed = $('#editor'), app = $('#app'), KEY = 'notepad-content';
+      let zoom = 100, timer;
+
+      // --- Sauvegarde automatique (localStorage) ---
+      try { ed.innerHTML = localStorage.getItem(KEY) || ''; } catch (e) { }
+      const save = () => {
+        try { localStorage.setItem(KEY, ed.innerHTML); $('#saved').textContent = 'Enregistré automatiquement'; }
+        catch (e) { $('#saved').textContent = 'Sauvegarde automatique indisponible'; }
+      };
+      const count = () => {
+        const t = ed.innerText.trim();
+        const w = t ? t.split(/\s+/).length : 0;
+        $('#count').textContent = `${w} mot${w > 1 ? 's' : ''} · ${t.length} caractère${t.length > 1 ? 's' : ''}`;
+      };
+      ed.addEventListener('input', () => { count(); clearTimeout(timer); timer = setTimeout(save, 400); });
+      count();
+
+      // --- Commandes ---
+      const cmd = (c, v = null) => { ed.focus(); document.execCommand(c, false, v); };
+      const download = (name, type, data) => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([data], { type }));
+        a.download = name; a.click(); URL.revokeObjectURL(a.href);
+      };
+
+      const actions = {
+        new() { if (!ed.innerText.trim() || confirm('Effacer le document actuel ?')) { ed.innerHTML = ''; save(); count(); ed.focus(); } },
+        open() { $('#file').click(); },
+        saveHtml() { download('note.html', 'text/html', `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Note</title></head><body>${ed.innerHTML}</body></html>`); },
+        saveTxt() { download('note.txt', 'text/plain', ed.innerText); },
+        print() { window.print(); },
+        async paste() {
+          try { const t = await navigator.clipboard.readText(); cmd('insertText', t); }
+          catch (e) { alert('Le navigateur bloque le collage par bouton. Utilisez Ctrl+V.'); }
+        },
+        find() {
+          const q = prompt('Rechercher :'); if (!q) return;
+          ed.focus();
+          if (!window.find(q)) alert('Aucun résultat.');
+        },
+        link() { const u = prompt('Adresse du lien :', 'https://'); if (u) cmd('createLink', u); },
+        image() { const u = prompt('URL de l’image :', 'https://'); if (u) cmd('insertImage', u); },
+        table() {
+          const r = +prompt('Nombre de lignes :', 3), c = +prompt('Nombre de colonnes :', 3);
+          if (!r || !c) return;
+          const row = '<tr>' + '<td><br></td>'.repeat(c) + '</tr>';
+          cmd('insertHTML', `<table>${row.repeat(r)}</table><p><br></p>`);
+        },
+        date() { cmd('insertText', new Date().toLocaleString('fr-FR')); },
+        full() { app.classList.toggle('full'); },
+        wrap() { ed.classList.toggle('nowrap'); },
+        zoomIn() { zoom = Math.min(250, zoom + 10); ed.style.fontSize = 16 * zoom / 100 + 'px'; },
+        zoomOut() { zoom = Math.max(50, zoom - 10); ed.style.fontSize = 16 * zoom / 100 + 'px'; },
+        help() { alert('Ctrl+B gras · Ctrl+I italique · Ctrl+U souligné\nCtrl+Z annuler · Ctrl+Y rétablir\nCtrl+S enregistrer · Ctrl+O ouvrir · Ctrl+F rechercher\nÉchap : quitter le plein écran'); }
+      };
+
+      document.addEventListener('mousedown', e => {
+        if (e.target.closest('[data-a],[data-c]')) e.preventDefault(); // garde la sélection
+      });
+      document.addEventListener('click', e => {
+        const b = e.target.closest('[data-a],[data-c]');
+        document.querySelectorAll('.menu.open').forEach(m => m.classList.remove('open'));
+        if (b) { b.dataset.a ? actions[b.dataset.a]() : cmd(b.dataset.c); return; }
+        const m = e.target.closest('.menu > button');
+        if (m) m.parentElement.classList.add('open');
+      });
+
+      // Listes déroulantes et couleurs
+      $('#font').onchange = e => { if (e.target.value) cmd('fontName', e.target.value); e.target.selectedIndex = 0; };
+      $('#size').onchange = e => { if (e.target.value) cmd('fontSize', e.target.value); e.target.selectedIndex = 0; };
+      $('#block').onchange = e => { if (e.target.value) cmd('formatBlock', e.target.value); e.target.selectedIndex = 0; };
+      $('#fore').oninput = e => cmd('foreColor', e.target.value);
+      $('#back').oninput = e => cmd('hiliteColor', e.target.value);
+
+      // Ouverture de fichier
+      $('#file').onchange = e => {
+        const f = e.target.files[0]; if (!f) return;
+        const r = new FileReader();
+        r.onload = () => {
+          const isHtml = /\.html?$/i.test(f.name);
+          if (isHtml) {
+            const doc = new DOMParser().parseFromString(r.result, 'text/html');
+            doc.querySelectorAll('script,iframe,object,embed').forEach(n => n.remove());
+            doc.querySelectorAll('*').forEach(n => [...n.attributes].forEach(a => { if (/^on/i.test(a.name)) n.removeAttribute(a.name); }));
+            ed.innerHTML = doc.body.innerHTML;
+          } else { ed.innerText = r.result; }
+          save(); count();
+        };
+        r.readAsText(f); e.target.value = '';
+      };
+
+      // Raccourcis
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') app.classList.remove('full');
+        if (!(e.ctrlKey || e.metaKey)) return;
+        const k = e.key.toLowerCase();
+        const map = { s: 'saveHtml', o: 'open', f: 'find' };
+        if (map[k]) { e.preventDefault(); actions[map[k]](); }
+        if (k === 'y') { e.preventDefault(); cmd('redo'); }
+      });
+    })();
+  </script>
+</body>
+
+</html>
